@@ -1,5 +1,5 @@
 plugins {
-  id "us.kirchmeier.capsule" version "1.0-rc1"
+    id "us.kirchmeier.capsule" version "1.0-rc1"
 }
 
 apply plugin: 'java'
@@ -7,7 +7,11 @@ apply plugin: 'application'
 
 
 task fatCapsule(type: FatCapsule) {
-  applicationClass 'dk.ku.mail.Main'
+    applicationClass 'dk.ku.mail.Main'
+}
+
+run{
+    standardInput = System.in
 }
 
 mainClassName = "dk.ku.mail.Main"
