@@ -112,7 +112,7 @@ public class HandleAbuse {
                 continue;
             }
 
-            msg = (EmailMessage)item;
+            msg = (EmailMessage) item;
             msg.setIsRead(true);
             msg.update(ConflictResolutionMode.AutoResolve);
             System.out.println("Mark report unread: " + msg.getSubject());

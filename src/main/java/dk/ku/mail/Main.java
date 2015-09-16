@@ -1,23 +1,23 @@
 package dk.ku.mail;
 
-import java.util.Scanner;
+import java.io.Console;
 
 public class Main {
-	public static void main(String [] args) {
+    public static void main(String[] args) {
+        try {
+            Console con = System.console();
 
-        Scanner reader = new Scanner(System.in);
-        System.out.print("Enter KU-username: ");
-        String username = reader.nextLine();
-        System.out.print("Enter password: ");
-        String password = reader.nextLine();
+            if (con != null) {
+                String username = con.readLine("Enter KU-username: ");
+                char[] password = con.readPassword("Enter password: ");
 
-        HandleAbuse abuse = new HandleAbuse(username + "@ku.dk", password, "abuse@adm.ku.dk");
-		try {
-            abuse.connect();
-            abuse.handleDuplicates();
-            abuse.close();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
+                HandleAbuse abuse = new HandleAbuse(username + "@ku.dk", new String(password), "abuse@adm.ku.dk");
+                abuse.connect();
+                abuse.handleDuplicates();
+                abuse.close();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 }
