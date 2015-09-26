@@ -8,6 +8,7 @@ import microsoft.exchange.webservices.data.core.enumeration.property.WellKnownFo
 import microsoft.exchange.webservices.data.core.enumeration.search.LogicalOperator;
 import microsoft.exchange.webservices.data.core.enumeration.search.SortDirection;
 import microsoft.exchange.webservices.data.core.enumeration.service.ConflictResolutionMode;
+import microsoft.exchange.webservices.data.core.service.folder.Folder;
 import microsoft.exchange.webservices.data.core.service.item.EmailMessage;
 import microsoft.exchange.webservices.data.core.service.item.Item;
 import microsoft.exchange.webservices.data.core.service.schema.EmailMessageSchema;
@@ -16,15 +17,21 @@ import microsoft.exchange.webservices.data.credential.ExchangeCredentials;
 import microsoft.exchange.webservices.data.credential.WebCredentials;
 import microsoft.exchange.webservices.data.property.complex.FolderId;
 import microsoft.exchange.webservices.data.property.complex.Mailbox;
+import microsoft.exchange.webservices.data.search.FindFoldersResults;
 import microsoft.exchange.webservices.data.search.FindItemsResults;
+import microsoft.exchange.webservices.data.search.FolderView;
 import microsoft.exchange.webservices.data.search.ItemView;
 import microsoft.exchange.webservices.data.search.filter.SearchFilter;
+import org.joda.time.DateTime;
+
+import java.util.Date;
 
 public class HandleAbuse {
     private String username;
     private String password;
     private String mailbox;
-    private FolderId folder;
+    private FolderId inbox;
+    private FolderId handled;
     private ExchangeService service;
 
     public HandleAbuse(String username, String password, String mailbox) {
@@ -41,7 +48,15 @@ public class HandleAbuse {
 
         // setup shared mailbox
         Mailbox mb = new Mailbox(mailbox);
-        folder = new FolderId(WellKnownFolderName.Inbox, mb);
+        inbox = new FolderId(WellKnownFolderName.Inbox, mb);
+
+        FindFoldersResults findResults = service.findFolders(inbox, new FolderView(5));
+
+        for (Folder folder : findResults.getFolders()) {
+            if (folder.getDisplayName().equals("Oprettet")) {
+                handled = folder.getId();
+            }
+        }
     }
 
     public void close() {
@@ -70,7 +85,7 @@ public class HandleAbuse {
                 new SearchFilter.ContainsSubstring(ItemSchema.Subject, "DKCERT Abuse Report"));
 
         do {
-            findResults = service.findItems(folder, sf, view);
+            findResults = service.findItems(inbox, sf, view);
 
             for (Item item : findResults.getItems()) {
                 markDuplicatesRead(item.getSubject());
@@ -83,7 +98,7 @@ public class HandleAbuse {
         System.out.println(count);
     }
 
-    public void markDuplicatesRead(String subject) throws Exception {
+    private void markDuplicatesRead(String subject) throws Exception {
         ItemView view = new ItemView(30);
         view.getOrderBy().add(ItemSchema.DateTimeReceived, SortDirection.Descending);
         view.setPropertySet(
@@ -102,20 +117,52 @@ public class HandleAbuse {
                 new SearchFilter.ContainsSubstring(ItemSchema.Subject, sub)
         );
 
-        FindItemsResults<Item> findResults = service.findItems(folder, sf, view);
+        FindItemsResults<Item> findResults = service.findItems(inbox, sf, view);
 
         EmailMessage msg;
         int i = -1;
         for (Item item : findResults.getItems()) {
             i++;
+            msg = (EmailMessage) item;
+
             if (i == 0) {
+                // Check if report was handled within the last 14 days.
+                markAlreadyHandled(sub, msg);
                 continue;
             }
 
-            msg = (EmailMessage) item;
             msg.setIsRead(true);
             msg.update(ConflictResolutionMode.AutoResolve);
-            System.out.println("Mark report unread: " + msg.getSubject());
+            System.out.println("Mark report read: " + msg.getSubject());
+        }
+    }
+
+    private void markAlreadyHandled(String subject, EmailMessage msg) throws Exception {
+        ItemView view = new ItemView(1);
+        view.getOrderBy().add(ItemSchema.DateTimeReceived, SortDirection.Descending);
+        view.setPropertySet(
+                new PropertySet(
+                        BasePropertySet.IdOnly,
+                        ItemSchema.Subject,
+                        ItemSchema.DateTimeReceived)
+        );
+
+        SearchFilter sf = new SearchFilter.SearchFilterCollection(
+                LogicalOperator.And,
+                new SearchFilter.IsEqualTo(EmailMessageSchema.IsRead, true),
+                new SearchFilter.ContainsSubstring(ItemSchema.Subject, subject)
+        );
+
+        FindItemsResults<Item> findResults = service.findItems(handled, sf, view);
+
+        // 14 days ago
+        Date after = new DateTime(new Date()).minusDays(14).toDate();
+
+        if (findResults.getItems().size() == 1 &&
+                findResults.getItems().get(0).getDateTimeReceived().after(after)) {
+            msg.setIsRead(true);
+            msg.update(ConflictResolutionMode.AutoResolve);
+            System.out.println("Mark report handled+read: " + msg.getSubject());
         }
     }
 }
