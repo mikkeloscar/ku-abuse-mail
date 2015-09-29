@@ -64,7 +64,7 @@ public class HandleAbuse {
     }
 
     public void handleDuplicates() throws Exception {
-        int offset = 10;
+        int offset = 200;
 
         ItemView view = new ItemView(offset);
         view.getOrderBy().add(ItemSchema.DateTimeReceived, SortDirection.Descending);
