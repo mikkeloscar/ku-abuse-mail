@@ -82,7 +82,11 @@ public class HandleAbuse {
         SearchFilter sf = new SearchFilter.SearchFilterCollection(
                 LogicalOperator.And,
                 new SearchFilter.IsEqualTo(EmailMessageSchema.IsRead, false),
-                new SearchFilter.ContainsSubstring(ItemSchema.Subject, "DKCERT Abuse Report"));
+                new SearchFilter.SearchFilterCollection(LogicalOperator.Or,
+                        new SearchFilter.ContainsSubstring(ItemSchema.Subject, "DKCERT Abuse Report"),
+                        new SearchFilter.ContainsSubstring(ItemSchema.Subject, "Distribuering af ophavsretsbeskyttet")
+                )
+        );
 
         do {
             findResults = service.findItems(inbox, sf, view);
