@@ -2,7 +2,7 @@
 
 ## Dependencies
 
-* [grade](http://gradle.org/)
+* [gradle](http://gradle.org/)
 
 ## Building
 
